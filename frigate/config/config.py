@@ -51,13 +51,18 @@ from .camera.review import ReviewConfig
 from .camera.snapshots import SnapshotsConfig
 from .camera.timestamp import TimestampStyleConfig
 from .camera_group import CameraGroupConfig
+from .classification import (
+    ClassificationConfig,
+    FaceRecognitionConfig,
+    LicensePlateRecognitionConfig,
+    SemanticSearchConfig,
+)
 from .database import DatabaseConfig
 from .env import EnvVars
 from .logger import LoggerConfig
 from .mqtt import MqttConfig
 from .notification import NotificationConfig
 from .proxy import ProxyConfig
-from .semantic_search import SemanticSearchConfig
 from .telemetry import TelemetryConfig
 from .tls import TlsConfig
 from .ui import UIConfig
@@ -157,6 +162,16 @@ class RuntimeFilterConfig(FilterConfig):
 
 class RestreamConfig(BaseModel):
     model_config = ConfigDict(extra="allow")
+
+
+def verify_semantic_search_dependent_configs(config: FrigateConfig) -> None:
+    """Verify that semantic search is enabled if required features are enabled."""
+    if not config.semantic_search.enabled:
+        if config.genai.enabled:
+            raise ValueError("Genai requires semantic search to be enabled.")
+
+        if config.face_recognition.enabled:
+            raise ValueError("Face recognition requires semantic to be enabled.")
 
 
 def verify_config_roles(camera_config: CameraConfig) -> None:
@@ -317,8 +332,18 @@ class FrigateConfig(FrigateBaseModel):
         default_factory=TelemetryConfig, title="Telemetry configuration."
     )
     tls: TlsConfig = Field(default_factory=TlsConfig, title="TLS configuration.")
+    classification: ClassificationConfig = Field(
+        default_factory=ClassificationConfig, title="Object classification config."
+    )
     semantic_search: SemanticSearchConfig = Field(
         default_factory=SemanticSearchConfig, title="Semantic search configuration."
+    )
+    face_recognition: FaceRecognitionConfig = Field(
+        default_factory=FaceRecognitionConfig, title="Face recognition config."
+    )
+    lpr: LicensePlateRecognitionConfig = Field(
+        default_factory=LicensePlateRecognitionConfig,
+        title="License Plate recognition config.",
     )
     ui: UIConfig = Field(default_factory=UIConfig, title="UI configuration.")
 
@@ -437,13 +462,12 @@ class FrigateConfig(FrigateBaseModel):
                 camera_config.ffmpeg.hwaccel_args = self.ffmpeg.hwaccel_args
 
             for input in camera_config.ffmpeg.inputs:
-                need_record_fourcc = False and "record" in input.roles
                 need_detect_dimensions = "detect" in input.roles and (
                     camera_config.detect.height is None
                     or camera_config.detect.width is None
                 )
 
-                if need_detect_dimensions or need_record_fourcc:
+                if need_detect_dimensions:
                     stream_info = {"width": 0, "height": 0, "fourcc": None}
                     try:
                         stream_info = stream_info_retriever.get_stream_info(
@@ -465,14 +489,6 @@ class FrigateConfig(FrigateBaseModel):
                         stream_info["height"]
                         if stream_info.get("height")
                         else DEFAULT_DETECT_DIMENSIONS["height"]
-                    )
-
-                if need_record_fourcc:
-                    # Apple only supports HEVC if it is hvc1 (vs. hev1)
-                    camera_config.ffmpeg.output_args._force_record_hvc1 = (
-                        stream_info["fourcc"] == "hevc"
-                        if stream_info.get("hevc")
-                        else False
                     )
 
             # Warn if detect fps > 10
@@ -578,13 +594,8 @@ class FrigateConfig(FrigateBaseModel):
             verify_autotrack_zones(camera_config)
             verify_motion_and_detect(camera_config)
 
-        # get list of unique enabled labels for tracking
-        enabled_labels = set(self.objects.track)
-
-        for camera in self.cameras.values():
-            enabled_labels.update(camera.objects.track)
-
-        self.model.create_colormap(sorted(enabled_labels))
+        self.objects.parse_all_objects(self.cameras)
+        self.model.create_colormap(sorted(self.objects.all_objects))
         self.model.check_and_load_plus_model(self.plus_api)
 
         for key, detector in self.detectors.items():
@@ -617,6 +628,7 @@ class FrigateConfig(FrigateBaseModel):
             detector_config.model = model
             self.detectors[key] = detector_config
 
+        verify_semantic_search_dependent_configs(self)
         return self
 
     @field_validator("cameras")

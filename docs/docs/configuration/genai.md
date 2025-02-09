@@ -94,32 +94,26 @@ genai:
   model: gemini-1.5-flash
 ```
 
-## OpenAI
+# OpenAI and OpenAI-Compatible APIs
+The OpenAI API specification has become a widely adopted standard that many providers use. This means when you configure Frigate to use OpenAI's API, you can actually use any vision model that's served through an OpenAI-compatible endpoint, including:
 
-OpenAI does not have a free tier for their API. With the release of gpt-4o, pricing has been reduced and each generation should cost fractions of a cent if you choose to go this route.
+- [OpenAI's own models](https://platform.openai.com/docs/guides/vision)
+- Local models (see Ollama section above)
+- Other providers that support the OpenAI API spec and vision inputs (many are listed on [OpenRouter](https://openrouter.ai) which gives an OpenAI API key)
+- Local model servers like LM Studio when configured to serve via OpenAI-compatible endpoints
 
-### Supported Models
+For local setups, Qwen2.5-VL-3B is an excellent option - it's a compact but capable vision model that runs well on consumer hardware.
+To use an alternative provider, just set the OPENAI_BASE_URL environment variable to your provider's API URL:
 
-You must use a vision capable model with Frigate. Current model variants can be found [in their documentation](https://platform.openai.com/docs/models). At the time of writing, this includes `gpt-4o` and `gpt-4-turbo`.
-
-### Get API Key
-
-To start using OpenAI, you must first [create an API key](https://platform.openai.com/api-keys) and [configure billing](https://platform.openai.com/settings/organization/billing/overview).
-
-### Configuration
-
-```yaml
+```
 genai:
   enabled: True
   provider: openai
-  api_key: "{FRIGATE_OPENAI_API_KEY}"
-  model: gpt-4o
+  api_key: "{RELEVANT_OPENAI_API_KEY}"  # May not be needed for local setups
+  model: # Use the appropriate model name for your provider
 ```
-
 :::note
-
-To use a different OpenAI-compatible API endpoint, set the `OPENAI_BASE_URL` environment variable to your provider's API URL.
-
+Make sure your chosen provider/model supports vision inputs - not all OpenAI-compatible models do.
 :::
 
 ## Azure OpenAI
