@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { getFieldHelp } from './fieldHelp';
 
 type Props = { schema: any; data: any; onChange: (next: any)=>void; section: string };
 
@@ -71,6 +72,70 @@ function getErrorsForPath(map: Record<string, string[]>, path: string[]): string
   return map[key] || [];
 }
 
+// Help icon with popup
+function HelpIcon({ path }: { path: string[] }) {
+  const [showHelp, setShowHelp] = useState(false);
+  const help = getFieldHelp(path);
+
+  if (!help) return null;
+
+  return (
+    <>
+      <button
+        type="button"
+        className="ml-2 inline-flex items-center justify-center w-5 h-5 text-xs rounded-full border border-muted-foreground text-muted-foreground hover:border-primary hover:bg-primary hover:text-primary-foreground cursor-pointer"
+        onClick={() => setShowHelp(true)}
+        title="Click for help"
+        style={{ minWidth: '20px', minHeight: '20px', lineHeight: '20px' }}
+      >
+        ?
+      </button>
+      {showHelp && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          onClick={() => setShowHelp(false)}
+        >
+          <div
+            className="bg-background border rounded-lg p-4 max-w-lg m-4 max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between mb-3">
+              <h3 className="font-semibold text-lg">{path[path.length - 1]}</h3>
+              <button
+                className="text-muted-foreground hover:text-foreground"
+                onClick={() => setShowHelp(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="text-sm space-y-3">
+              <p className="text-foreground">{help.description}</p>
+              {help.example && (
+                <div>
+                  <div className="font-medium mb-1">Example:</div>
+                  <pre className="bg-muted p-2 rounded text-xs overflow-x-auto">
+                    {help.example}
+                  </pre>
+                </div>
+              )}
+              {help.docsUrl && (
+                <a
+                  href={help.docsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block text-primary hover:underline"
+                >
+                  📖 View documentation →
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 function Field({ path, subschema, value, onChange, errorsFor, rootSchema }: any) {
   // Resolve schema to handle $ref, anyOf, etc.
   const resolved = useMemo(() => resolveSchema(subschema, rootSchema), [subschema, rootSchema]);
@@ -81,30 +146,39 @@ function Field({ path, subschema, value, onChange, errorsFor, rootSchema }: any)
   const errs = errorsFor(path);
   const Err = () =>
     errs.length ? (
-      <div class="text-xs text-destructive mt-1">{errs.join('; ')}</div>
+      <div className="text-xs text-destructive mt-1">{errs.join('; ')}</div>
     ) : null;
 
   if (type === 'boolean') {
     return (
-      <label class="flex items-center gap-2 py-1">
+      <label className="flex items-center gap-2 py-1">
         <input type="checkbox" checked={!!value} onChange={() => onChange(!value)} />
-        <span class="font-medium">{title}</span>
-        {desc && <span class="text-xs text-muted-foreground"> — {desc}</span>}
+        <span className="font-medium inline-flex items-center">
+          {title}
+          <HelpIcon path={path} />
+        </span>
+        {desc && <span className="text-xs text-muted-foreground"> — {desc}</span>}
         <Err />
       </label>
     );
   }
   if (type === 'number' || type === 'integer') {
     return (
-      <label class="block py-1">
-        <span class="font-medium">{title}</span>
+      <label className="block py-1">
+        <span className="font-medium inline-flex items-center">
+          {title}
+          <HelpIcon path={path} />
+        </span>
         <input
-          class="border rounded w-full p-2"
+          className="border rounded w-full p-2 bg-background text-foreground"
           type="number"
           value={value ?? ''}
-          onChange={(e) => onChange((e.target as HTMLInputElement).valueAsNumber)}
+          onChange={(e) => {
+            const val = (e.target as HTMLInputElement).valueAsNumber;
+            onChange(isNaN(val) ? undefined : val);
+          }}
         />
-        {desc && <div class="text-xs text-muted-foreground">{desc}</div>}
+        {desc && <div className="text-xs text-muted-foreground">{desc}</div>}
         <Err />
       </label>
     );
@@ -112,10 +186,13 @@ function Field({ path, subschema, value, onChange, errorsFor, rootSchema }: any)
   if (type === 'string') {
     if (resolved.enum) {
       return (
-        <label class="block py-1">
-          <span class="font-medium">{title}</span>
+        <label className="block py-1">
+          <span className="font-medium inline-flex items-center">
+            {title}
+            <HelpIcon path={path} />
+          </span>
           <select
-            class="border rounded w-full p-2"
+            className="border rounded w-full p-2 bg-background text-foreground"
             value={value ?? ''}
             onChange={(e) => onChange((e.target as HTMLSelectElement).value)}
           >
@@ -126,21 +203,24 @@ function Field({ path, subschema, value, onChange, errorsFor, rootSchema }: any)
               </option>
             ))}
           </select>
-          {desc && <div class="text-xs text-muted-foreground">{desc}</div>}
+          {desc && <div className="text-xs text-muted-foreground">{desc}</div>}
           <Err />
         </label>
       );
     }
     return (
-      <label class="block py-1">
-        <span class="font-medium">{title}</span>
+      <label className="block py-1">
+        <span className="font-medium inline-flex items-center">
+          {title}
+          <HelpIcon path={path} />
+        </span>
         <input
-          class="border rounded w-full p-2"
+          className="border rounded w-full p-2 bg-background text-foreground"
           type="text"
           value={value ?? ''}
           onChange={(e) => onChange((e.target as HTMLInputElement).value)}
         />
-        {desc && <div class="text-xs text-muted-foreground">{desc}</div>}
+        {desc && <div className="text-xs text-muted-foreground">{desc}</div>}
         <Err />
       </label>
     );
@@ -148,18 +228,38 @@ function Field({ path, subschema, value, onChange, errorsFor, rootSchema }: any)
   if (type === 'object') {
     // Check if it's a map/dictionary (additionalProperties) vs fixed properties
     if (resolved.additionalProperties && !resolved.properties) {
-      // This is a map like cameras: { camera_name: CameraConfig }
+      // This is a map like cameras: { camera_name: CameraConfig } or environment_vars: { KEY: "value" }
       const items = value && typeof value === 'object' ? Object.keys(value) : [];
+      const additionalPropsSchema = resolved.additionalProperties;
+      const isSimpleType = typeof additionalPropsSchema === 'object' &&
+        (additionalPropsSchema.type === 'string' || additionalPropsSchema.type === 'number' || additionalPropsSchema.type === 'boolean');
+
+      // Default value for new items based on type
+      const getDefaultValue = () => {
+        if (typeof additionalPropsSchema === 'object' && additionalPropsSchema.type === 'string') return '';
+        if (typeof additionalPropsSchema === 'object' && additionalPropsSchema.type === 'number') return 0;
+        if (typeof additionalPropsSchema === 'object' && additionalPropsSchema.type === 'boolean') return false;
+        return {}; // Complex object
+      };
+
       return (
-        <div class="border rounded p-3 my-2">
-          <div class="font-semibold mb-1">{title}</div>
-          {desc && <div class="text-xs text-muted-foreground mb-2">{desc}</div>}
+        <div className="border rounded p-3 my-2">
+          <div className="font-semibold mb-1 inline-flex items-center">
+            {title}
+            <HelpIcon path={path} />
+          </div>
+          {desc && <div className="text-xs text-muted-foreground mb-2">{desc}</div>}
+          {items.length === 0 && (
+            <div className="text-sm text-muted-foreground mb-2 italic">
+              No items yet. Click "+ Add" below to create one.
+            </div>
+          )}
           {items.map((itemKey) => (
-            <div key={itemKey} class="border rounded p-2 my-2">
-              <div class="flex items-center justify-between mb-2">
-                <span class="font-medium">{itemKey}</span>
+            <div key={itemKey} className="border rounded p-2 my-2">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-medium">{itemKey}</span>
                 <button
-                  class="border rounded px-2 py-1 text-xs"
+                  className="border rounded px-2 py-1 text-xs bg-background text-foreground hover:bg-muted"
                   onClick={() => {
                     const next = { ...value };
                     delete next[itemKey];
@@ -180,11 +280,11 @@ function Field({ path, subschema, value, onChange, errorsFor, rootSchema }: any)
             </div>
           ))}
           <button
-            class="mt-2 border rounded px-3 py-1 text-sm"
+            className="mt-2 border rounded px-3 py-1 text-sm bg-background text-foreground hover:bg-muted"
             onClick={() => {
               const newKey = prompt('Enter name for new item:');
               if (newKey && newKey.trim()) {
-                onChange({ ...(value || {}), [newKey.trim()]: {} });
+                onChange({ ...(value || {}), [newKey.trim()]: getDefaultValue() });
               }
             }}
           >
@@ -199,8 +299,8 @@ function Field({ path, subschema, value, onChange, errorsFor, rootSchema }: any)
     if (resolved.properties) {
       const keys = Object.keys(resolved.properties);
       return (
-        <div class="border rounded p-3 my-2">
-          <div class="font-semibold mb-1">{title}</div>
+        <div className="border rounded p-3 my-2">
+          <div className="font-semibold mb-1">{title}</div>
           {keys.map((k) => (
             <Field
               key={k}
@@ -220,12 +320,12 @@ function Field({ path, subschema, value, onChange, errorsFor, rootSchema }: any)
   if (type === 'array') {
     const items = Array.isArray(value) ? value : [];
     return (
-      <div class="border rounded p-3 my-2">
-        <div class="font-semibold mb-1">{title}</div>
+      <div className="border rounded p-3 my-2">
+        <div className="font-semibold mb-1">{title}</div>
         {items.map((it: any, idx: number) => (
-          <div class="flex items-center gap-2 py-1" key={idx}>
+          <div className="flex items-center gap-2 py-1" key={idx}>
             <input
-              class="border rounded flex-1 p-2"
+              className="border rounded flex-1 p-2 bg-background text-foreground"
               type="text"
               value={String(it)}
               onChange={(e) => {
@@ -235,7 +335,7 @@ function Field({ path, subschema, value, onChange, errorsFor, rootSchema }: any)
               }}
             />
             <button
-              class="border rounded px-2 py-1"
+              className="border rounded px-2 py-1 bg-background text-foreground hover:bg-muted"
               onClick={() => onChange(items.filter((_: any, i: number) => i !== idx))}
             >
               -
@@ -243,17 +343,17 @@ function Field({ path, subschema, value, onChange, errorsFor, rootSchema }: any)
           </div>
         ))}
         <button
-          class="mt-1 border rounded px-2 py-1"
+          className="mt-1 border rounded px-2 py-1 bg-background text-foreground hover:bg-muted"
           onClick={() => onChange([...(items || []), ''])}
         >
           + Add
         </button>
-        {desc && <div class="text-xs text-muted-foreground">{desc}</div>}
+        {desc && <div className="text-xs text-muted-foreground">{desc}</div>}
         <Err />
       </div>
     );
   }
-  return <div class="text-xs text-muted-foreground">Unsupported field: {title}</div>;
+  return <div className="text-xs text-muted-foreground">Unsupported field: {title}</div>;
 }
 
 export default function SimpleRenderer({ schema, data, onChange, section }: Props) {
@@ -261,7 +361,7 @@ export default function SimpleRenderer({ schema, data, onChange, section }: Prop
   const errorsFor = () => [];
 
   return (
-    <div class="p-4">
+    <div className="p-4">
       <Field
         path={[section]}
         subschema={(schema.properties || {})[section]}
