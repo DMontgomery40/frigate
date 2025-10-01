@@ -19,13 +19,16 @@ We need to transform these into actually helpful documentation that answers:
 
 ## Your Resources
 
-1. **Frigate Documentation**: https://docs.frigate.video/
+1. **Frigate Documentation** (SOURCE OF TRUTH): https://docs.frigate.video/
    - Configuration reference: https://docs.frigate.video/configuration/
    - Start here and explore EVERY configuration page
+   - This is THE authoritative source for what fields do and valid values
 
-2. **JSON Schema**: Available at http://192.168.68.229:5001/api/config/schema.json
+2. **Project Repository**: https://github.com/DMontgomery40/frigate
+   - Branch: `gui-beta-clean`
+   - Schema file: https://github.com/DMontgomery40/frigate/blob/gui-beta-clean/frigate/config.py
    - Contains field names, types, defaults, and minimal descriptions
-   - Use this to get the complete list of fields
+   - Use this to get the complete list of fields that need documentation
 
 3. **Example Configs**: https://github.com/blakeblackshear/frigate/tree/dev/config
    - Look at real user configurations for practical examples
@@ -219,9 +222,9 @@ The file should be ready to drop into:
 ## Start Your Research
 
 Begin by:
-1. Fetching the schema: `curl http://192.168.68.229:5001/api/config/schema.json > schema.json`
-2. Browsing https://docs.frigate.video/configuration/
-3. Creating entries for the 10 high-priority fields first
-4. Then systematically working through the schema alphabetically
+1. Browsing https://docs.frigate.video/configuration/ - this is THE source of truth
+2. Check the schema at https://github.com/DMontgomery40/frigate/blob/gui-beta-clean/frigate/config.py for the complete field list
+3. Create entries for the 10 high-priority fields first
+4. Then systematically work through ALL schema fields
 
 Good luck! The goal is to make Frigate configuration accessible to people who are dyslexic or intimidated by YAML. Every field should have enough information that a user never has to leave the GUI to understand what to put there.
