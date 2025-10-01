@@ -122,11 +122,24 @@ export default function SimpleRenderer({ schema, data, onChange, section }: Prop
     properties: { [section]: (schema.properties||{})[section] }
   }), [schema, section]);
 
-  const validate = useMemo(() => ajv.compile(sectionSchema), [sectionSchema]);
+  const validate = useMemo(() => {
+    try {
+      // Allow $ref resolution against the full schema when present
+      try { ajv.addSchema(schema, 'root'); } catch {}
+      return ajv.compile(sectionSchema);
+    } catch {
+      // Fallback: no-op validator
+      return Object.assign(() => true, { errors: [] as any[] });
+    }
+  }, [sectionSchema, schema]);
+
   const errorMap = useMemo(() => {
-    // Run validation to populate errors; ignore boolean result
-    void validate(data);
-    return buildErrorMap(validate.errors as any);
+    try {
+      void (validate as any)(data);
+      return buildErrorMap((validate as any).errors as any);
+    } catch {
+      return {} as Record<string, string[]>;
+    }
   }, [validate, data]);
 
   const errorsFor = (path: string[]) => errorMap[path.join('.') ] || [];
@@ -143,4 +156,3 @@ export default function SimpleRenderer({ schema, data, onChange, section }: Prop
     </div>
   );
 }
-
