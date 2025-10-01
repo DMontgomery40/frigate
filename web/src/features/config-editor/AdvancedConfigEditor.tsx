@@ -84,7 +84,7 @@ export default function AdvancedConfigEditor() {
 
   const onSectionChange = useCallback(
     (e: any) => {
-      const next = e.formData?.[activeSection];
+      const next = e.formData; // section-level form data
       setFormData((prev: any) => ({ ...prev, [activeSection]: next }));
       setUnsaved(true);
     },
@@ -146,10 +146,11 @@ export default function AdvancedConfigEditor() {
         );
       }
 
-      const sectionSchema = {
-        type: 'object',
-        properties: { [activeSection]: sectionSubschema },
-      } as const;
+      // Build a section-only schema but inject $defs/definitions from root
+      const rjsfSectionSchema = useMemo(() => {
+        const defs = (schema as any).$defs || (schema as any).definitions;
+        return defs ? { ...sectionSubschema, $defs: defs } : sectionSubschema;
+      }, [schema, sectionSubschema]);
 
       const fallback = (
         <SimpleRenderer
@@ -164,9 +165,9 @@ export default function AdvancedConfigEditor() {
         return (
           <ErrorBoundary fallback={fallback}>
             <RJSFForm
-              schema={sectionSchema}
+              schema={rjsfSectionSchema as any}
               validator={rjsfValidator}
-              formData={{ [activeSection]: formData?.[activeSection] }}
+              formData={formData?.[activeSection]}
               onChange={onSectionChange}
               uiSchema={{}}
               liveValidate={false}
