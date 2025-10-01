@@ -20,6 +20,7 @@ const Events = lazy(() => import("@/pages/Events"));
 const Explore = lazy(() => import("@/pages/Explore"));
 const Exports = lazy(() => import("@/pages/Exports"));
 const ConfigEditor = lazy(() => import("@/pages/ConfigEditor"));
+const AdvancedConfigEditorPage = lazy(() => import("@/pages/AdvancedConfigEditor"));
 const System = lazy(() => import("@/pages/System"));
 const Settings = lazy(() => import("@/pages/Settings"));
 const UIPlayground = lazy(() => import("@/pages/UIPlayground"));
@@ -86,6 +87,7 @@ function DefaultAppView() {
             <Route element={<ProtectedRoute requiredRoles={["admin"]} />}>
               <Route path="/system" element={<System />} />
               <Route path="/config" element={<ConfigEditor />} />
+              <Route path="/config-advanced" element={<AdvancedConfigEditorPage />} />
               <Route path="/logs" element={<Logs />} />
               <Route path="/faces" element={<FaceLibrary />} />
               <Route path="/classification" element={<Classification />} />
