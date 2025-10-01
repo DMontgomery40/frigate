@@ -138,48 +138,30 @@ export default function AdvancedConfigEditor() {
 
   const Content = () => {
     if (!schema || !formData) return <div className="p-4 text-sm text-muted-foreground">Loading…</div>;
-    if (activeTab === 'form') {
-      const sectionSubschema = (schema.properties || {})[activeSection];
-      if (!sectionSubschema) {
-        return (
-          <div className="p-4 text-sm text-muted-foreground">No schema available for section "{activeSection}".</div>
-        );
-      }
-
+    if (RJSFForm && rjsfValidator && activeTab === 'form') {
       const sectionSchema = {
         type: 'object',
-        properties: { [activeSection]: sectionSubschema },
-      } as const;
-
-      const fallback = (
-        <SimpleRenderer
-          schema={schema}
-          data={formData}
-          onChange={onSimpleChange}
-          section={activeSection}
-        />
+        properties: { [activeSection]: (schema.properties || {})[activeSection] },
+      };
+      return (
+        <ErrorBoundary fallback={<div className="p-4 text-sm text-destructive">Editor crashed. Try another section.</div>}>
+          <RJSFForm
+            schema={sectionSchema}
+            validator={rjsfValidator}
+            formData={formData}
+            onChange={onSectionChange}
+            uiSchema={{}}
+            liveValidate={false}
+          >
+            <div />
+          </RJSFForm>
+        </ErrorBoundary>
       );
-
-      if (RJSFForm && rjsfValidator) {
-        return (
-          <ErrorBoundary fallback={fallback}>
-            <RJSFForm
-              schema={sectionSchema}
-              validator={rjsfValidator}
-              formData={{ [activeSection]: formData?.[activeSection] }}
-              onChange={onSectionChange}
-              uiSchema={{}}
-              liveValidate={false}
-              omitExtraData
-            >
-              <div />
-            </RJSFForm>
-          </ErrorBoundary>
-        );
-      }
-
-      // RJSF not available -> fallback renderer
-      return fallback;
+    }
+    if (activeTab === 'form') {
+      return (
+        <SimpleRenderer schema={schema} data={formData} onChange={onSimpleChange} section={activeSection} />
+      );
     }
     return (
       <pre className="text-xs md:text-sm p-3 overflow-auto bg-background_alt border rounded h-full whitespace-pre-wrap">{rawYaml || ''}</pre>

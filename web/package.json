@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --host",
     "build": "tsc && vite build --base=/BASE_PATH/",
+    "build:nocheck": "vite build --base=/BASE_PATH/",
     "lint": "eslint --ext .jsx,.js,.tsx,.ts --ignore-path .gitignore .",
     "lint:fix": "eslint --ext .jsx,.js,.tsx,.ts --ignore-path .gitignore --fix .",
     "preview": "vite preview",
