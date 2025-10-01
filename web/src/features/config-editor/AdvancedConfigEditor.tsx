@@ -165,8 +165,15 @@ export default function AdvancedConfigEditor() {
         />
       );
     }
-    // Decode JSON-escaped YAML string
-    const decodedYaml = rawYaml ? (typeof rawYaml === 'string' ? rawYaml.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/^"|"$/g, '') : rawYaml) : '';
+    // Decode JSON-escaped YAML string if needed
+    let decodedYaml = rawYaml || '';
+    if (typeof decodedYaml === 'string' && decodedYaml.startsWith('"') && decodedYaml.includes('\\n')) {
+      try {
+        decodedYaml = JSON.parse(decodedYaml);
+      } catch (e) {
+        // Already plain text
+      }
+    }
     return (
       <pre class="text-xs md:text-sm p-3 overflow-auto bg-background_alt border rounded h-full whitespace-pre-wrap">{decodedYaml}</pre>
     );
@@ -194,8 +201,8 @@ export default function AdvancedConfigEditor() {
       </div>
 
       {/* Main */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <div className="flex items-center gap-2 p-2 border-b">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <div className="flex items-center gap-2 p-2 border-b shrink-0">
           <button className="md:hidden border rounded px-2 py-1" onClick={() => setMobileMenuOpen((v) => !v)}>
             ☰
           </button>
@@ -246,7 +253,7 @@ export default function AdvancedConfigEditor() {
           </div>
         )}
 
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 overflow-auto">
           <Content />
         </div>
       </div>
