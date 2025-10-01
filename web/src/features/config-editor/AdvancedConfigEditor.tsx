@@ -15,15 +15,15 @@ const fetcher = (url: string) => axios.get(url, { withCredentials: true }).then(
 export default function AdvancedConfigEditor() {
   const { t } = useTranslation('views/settings');
 
-  const { data: schema } = useSWR('/config/schema.json', fetcher, {
+  const { data: schema } = useSWR('config/schema.json', fetcher, {
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
   });
-  const { data: config, mutate } = useSWR('/config', fetcher, {
+  const { data: config, mutate } = useSWR('config', fetcher, {
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
   });
-  const { data: rawYaml, mutate: mutateRaw } = useSWR('/config/raw', fetcher, {
+  const { data: rawYaml, mutate: mutateRaw } = useSWR('config/raw', fetcher, {
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
   });
@@ -105,7 +105,7 @@ export default function AdvancedConfigEditor() {
         const chunk = chunks[i];
         const qs = chunk.join('&');
         try {
-          await axios.put(`/config/set?${qs}`);
+          await axios.put(`config/set?${qs}`);
         } catch (err: any) {
           const msg = err?.response?.data?.message || err?.message || 'Unknown error';
           throw new Error(`Chunk ${i + 1}/${chunks.length} failed: ${msg}`);
@@ -249,4 +249,3 @@ export default function AdvancedConfigEditor() {
     </div>
   );
 }
-
