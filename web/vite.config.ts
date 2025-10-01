@@ -4,7 +4,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import monacoEditorPlugin from "vite-plugin-monaco-editor";
 
-const proxyHost = process.env.PROXY_HOST || "localhost:5000";
+const proxyHost = process.env.PROXY_HOST || "localhost:5001";
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -12,6 +12,7 @@ export default defineConfig({
     "import.meta.vitest": "undefined",
   },
   server: {
+    port: 8971,
     proxy: {
       "/api": {
         target: `http://${proxyHost}`,

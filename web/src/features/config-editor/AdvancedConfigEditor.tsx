@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useSWR from 'swr';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
@@ -6,8 +6,9 @@ import { diffToParamPairs, chunkParamPairs } from './diffToQuery';
 import { validateConfigGuards } from './clientGuards';
 import SimpleRenderer from './SimpleRenderer';
 import { ErrorBoundary } from './ErrorBoundary';
+import type { ComponentType } from 'react';
 
-type RJSFFormType = React.ComponentType<any> | null;
+type RJSFFormType = ComponentType<any> | null;
 type ValidatorType = any;
 
 const fetcher = (url: string) => axios.get(url, { withCredentials: true }).then((r) => r.data);
@@ -136,23 +137,26 @@ export default function AdvancedConfigEditor() {
     }
   }, [config, formData, mutate, mutateRaw, saveChunks]);
 
+  // Build section schema with $defs injected (moved outside Content to avoid hooks violation)
+  const rjsfSectionSchema = useMemo(() => {
+    if (!schema) return null;
+    const sectionSubschema = (schema.properties || {})[activeSection];
+    if (!sectionSubschema) return null;
+    const defs = (schema as any).$defs || (schema as any).definitions;
+    return defs ? { ...sectionSubschema, $defs: defs } : sectionSubschema;
+  }, [schema, activeSection]);
+
   const Content = () => {
-    if (!schema || !formData) return <div className="p-4 text-sm text-muted-foreground">Loading…</div>;
+    if (!schema || !formData) return <div class="p-4 text-sm text-muted-foreground">Loading…</div>;
     if (activeTab === 'form') {
-      const sectionSubschema = (schema.properties || {})[activeSection];
-      if (!sectionSubschema) {
+      if (!rjsfSectionSchema) {
         return (
-          <div className="p-4 text-sm text-muted-foreground">No schema available for section "{activeSection}".</div>
+          <div class="p-4 text-sm text-muted-foreground">No schema available for section "{activeSection}".</div>
         );
       }
 
-      // Build a section-only schema but inject $defs/definitions from root
-      const rjsfSectionSchema = useMemo(() => {
-        const defs = (schema as any).$defs || (schema as any).definitions;
-        return defs ? { ...sectionSubschema, $defs: defs } : sectionSubschema;
-      }, [schema, sectionSubschema]);
-
-      const fallback = (
+      // Use SimpleRenderer - it handles $refs properly
+      return (
         <SimpleRenderer
           schema={schema}
           data={formData}
@@ -160,30 +164,11 @@ export default function AdvancedConfigEditor() {
           section={activeSection}
         />
       );
-
-      if (RJSFForm && rjsfValidator) {
-        return (
-          <ErrorBoundary fallback={fallback}>
-            <RJSFForm
-              schema={rjsfSectionSchema as any}
-              validator={rjsfValidator}
-              formData={formData?.[activeSection]}
-              onChange={onSectionChange}
-              uiSchema={{}}
-              liveValidate={false}
-              omitExtraData
-            >
-              <div />
-            </RJSFForm>
-          </ErrorBoundary>
-        );
-      }
-
-      // RJSF not available -> fallback renderer
-      return fallback;
     }
+    // Decode JSON-escaped YAML string
+    const decodedYaml = rawYaml ? (typeof rawYaml === 'string' ? rawYaml.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/^"|"$/g, '') : rawYaml) : '';
     return (
-      <pre className="text-xs md:text-sm p-3 overflow-auto bg-background_alt border rounded h-full whitespace-pre-wrap">{rawYaml || ''}</pre>
+      <pre class="text-xs md:text-sm p-3 overflow-auto bg-background_alt border rounded h-full whitespace-pre-wrap">{decodedYaml}</pre>
     );
   };
 

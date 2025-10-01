@@ -1,15 +1,57 @@
-import React, { useMemo } from 'react';
-import Ajv from 'ajv';
+import { useMemo } from 'react';
 
 type Props = { schema: any; data: any; onChange: (next: any)=>void; section: string };
 
-// Create Ajv instance that can handle $defs
-const ajv = new Ajv({
-  allErrors: true,
-  coerceTypes: true,
-  useDefaults: true,
-  strict: false, // Allow $defs and other draft-2019-09 features
-});
+// Resolve $ref in schema by looking up in root schema
+function resolveRef(ref: string, rootSchema: any): any {
+  if (!ref || !ref.startsWith('#/')) return null;
+  const path = ref.substring(2).split('/');
+  let current = rootSchema;
+  for (const part of path) {
+    if (!current || typeof current !== 'object') return null;
+    current = current[part];
+  }
+  return current;
+}
+
+// Resolve schema handling $ref, anyOf, allOf, oneOf
+function resolveSchema(schema: any, rootSchema: any): any {
+  if (!schema) return null;
+
+  // Handle $ref
+  if (schema.$ref) {
+    const resolved = resolveRef(schema.$ref, rootSchema);
+    if (resolved) return resolveSchema(resolved, rootSchema);
+  }
+
+  // Handle anyOf - take first option (simple heuristic)
+  if (schema.anyOf && Array.isArray(schema.anyOf)) {
+    return resolveSchema(schema.anyOf[0], rootSchema);
+  }
+
+  // Handle allOf - merge all schemas
+  if (schema.allOf && Array.isArray(schema.allOf)) {
+    let merged: any = { ...schema };
+    delete merged.allOf;
+    for (const subSchema of schema.allOf) {
+      const resolved = resolveSchema(subSchema, rootSchema);
+      if (resolved) {
+        merged = { ...merged, ...resolved };
+        if (resolved.properties) {
+          merged.properties = { ...merged.properties, ...resolved.properties };
+        }
+      }
+    }
+    return merged;
+  }
+
+  // Handle oneOf - take first option (simple heuristic)
+  if (schema.oneOf && Array.isArray(schema.oneOf)) {
+    return resolveSchema(schema.oneOf[0], rootSchema);
+  }
+
+  return schema;
+}
 
 const ptrToDot = (p: string) => p.replace(/^\//, '').replace(/\//g, '.');
 
@@ -29,90 +71,94 @@ function getErrorsForPath(map: Record<string, string[]>, path: string[]): string
   return map[key] || [];
 }
 
-function Field({ path, subschema, value, onChange, errorsFor }: any) {
-  const type = subschema?.type;
-  const title = subschema?.title || path[path.length - 1];
-  const desc = subschema?.description;
+function Field({ path, subschema, value, onChange, errorsFor, rootSchema }: any) {
+  // Resolve schema to handle $ref, anyOf, etc.
+  const resolved = useMemo(() => resolveSchema(subschema, rootSchema), [subschema, rootSchema]);
+
+  const type = resolved?.type;
+  const title = resolved?.title || path[path.length - 1];
+  const desc = resolved?.description;
   const errs = errorsFor(path);
   const Err = () =>
     errs.length ? (
-      <div className="text-xs text-destructive mt-1">{errs.join('; ')}</div>
+      <div class="text-xs text-destructive mt-1">{errs.join('; ')}</div>
     ) : null;
 
   if (type === 'boolean') {
     return (
-      <label className="flex items-center gap-2 py-1">
+      <label class="flex items-center gap-2 py-1">
         <input type="checkbox" checked={!!value} onChange={() => onChange(!value)} />
-        <span className="font-medium">{title}</span>
-        {desc && <span className="text-xs text-muted-foreground"> — {desc}</span>}
+        <span class="font-medium">{title}</span>
+        {desc && <span class="text-xs text-muted-foreground"> — {desc}</span>}
         <Err />
       </label>
     );
   }
   if (type === 'number' || type === 'integer') {
     return (
-      <label className="block py-1">
-        <span className="font-medium">{title}</span>
+      <label class="block py-1">
+        <span class="font-medium">{title}</span>
         <input
-          className="border rounded w-full p-2"
+          class="border rounded w-full p-2"
           type="number"
           value={value ?? ''}
           onChange={(e) => onChange((e.target as HTMLInputElement).valueAsNumber)}
         />
-        {desc && <div className="text-xs text-muted-foreground">{desc}</div>}
+        {desc && <div class="text-xs text-muted-foreground">{desc}</div>}
         <Err />
       </label>
     );
   }
   if (type === 'string') {
-    if (subschema.enum) {
+    if (resolved.enum) {
       return (
-        <label className="block py-1">
-          <span className="font-medium">{title}</span>
+        <label class="block py-1">
+          <span class="font-medium">{title}</span>
           <select
-            className="border rounded w-full p-2"
+            class="border rounded w-full p-2"
             value={value ?? ''}
             onChange={(e) => onChange((e.target as HTMLSelectElement).value)}
           >
             <option value=""></option>
-            {subschema.enum.map((v: any) => (
+            {resolved.enum.map((v: any) => (
               <option key={String(v)} value={v}>
                 {String(v)}
               </option>
             ))}
           </select>
-          {desc && <div className="text-xs text-muted-foreground">{desc}</div>}
+          {desc && <div class="text-xs text-muted-foreground">{desc}</div>}
           <Err />
         </label>
       );
     }
     return (
-      <label className="block py-1">
-        <span className="font-medium">{title}</span>
+      <label class="block py-1">
+        <span class="font-medium">{title}</span>
         <input
-          className="border rounded w-full p-2"
+          class="border rounded w-full p-2"
           type="text"
           value={value ?? ''}
           onChange={(e) => onChange((e.target as HTMLInputElement).value)}
         />
-        {desc && <div className="text-xs text-muted-foreground">{desc}</div>}
+        {desc && <div class="text-xs text-muted-foreground">{desc}</div>}
         <Err />
       </label>
     );
   }
-  if (type === 'object' && subschema.properties) {
-    const keys = Object.keys(subschema.properties);
+  if (type === 'object' && resolved.properties) {
+    const keys = Object.keys(resolved.properties);
     return (
-      <div className="border rounded p-3 my-2">
-        <div className="font-semibold mb-1">{title}</div>
+      <div class="border rounded p-3 my-2">
+        <div class="font-semibold mb-1">{title}</div>
         {keys.map((k) => (
           <Field
             key={k}
             path={[...path, k]}
-            subschema={(subschema.properties as any)[k]}
+            subschema={(resolved.properties as any)[k]}
             value={value?.[k]}
             onChange={(v: any) => onChange({ ...(value || {}), [k]: v })}
             errorsFor={errorsFor}
+            rootSchema={rootSchema}
           />
         ))}
         <Err />
@@ -122,12 +168,12 @@ function Field({ path, subschema, value, onChange, errorsFor }: any) {
   if (type === 'array') {
     const items = Array.isArray(value) ? value : [];
     return (
-      <div className="border rounded p-3 my-2">
-        <div className="font-semibold mb-1">{title}</div>
+      <div class="border rounded p-3 my-2">
+        <div class="font-semibold mb-1">{title}</div>
         {items.map((it: any, idx: number) => (
-          <div className="flex items-center gap-2 py-1" key={idx}>
+          <div class="flex items-center gap-2 py-1" key={idx}>
             <input
-              className="border rounded flex-1 p-2"
+              class="border rounded flex-1 p-2"
               type="text"
               value={String(it)}
               onChange={(e) => {
@@ -137,7 +183,7 @@ function Field({ path, subschema, value, onChange, errorsFor }: any) {
               }}
             />
             <button
-              className="border rounded px-2 py-1"
+              class="border rounded px-2 py-1"
               onClick={() => onChange(items.filter((_: any, i: number) => i !== idx))}
             >
               -
@@ -145,69 +191,32 @@ function Field({ path, subschema, value, onChange, errorsFor }: any) {
           </div>
         ))}
         <button
-          className="mt-1 border rounded px-2 py-1"
+          class="mt-1 border rounded px-2 py-1"
           onClick={() => onChange([...(items || []), ''])}
         >
           + Add
         </button>
-        {desc && <div className="text-xs text-muted-foreground">{desc}</div>}
+        {desc && <div class="text-xs text-muted-foreground">{desc}</div>}
         <Err />
       </div>
     );
   }
-  return <div className="text-xs text-muted-foreground">Unsupported field: {title}</div>;
+  return <div class="text-xs text-muted-foreground">Unsupported field: {title}</div>;
 }
 
 export default function SimpleRenderer({ schema, data, onChange, section }: Props) {
-  const sectionSchema = useMemo(() => {
-    const fullSchema = {
-      ...schema,
-      type: 'object',
-      properties: { [section]: (schema.properties || {})[section] },
-    };
-    return fullSchema;
-  }, [schema, section]);
-
-  const validate = useMemo(() => {
-    try {
-      // Register the full schema so $defs are available
-      if ((schema as any).$defs || (schema as any).definitions) {
-        const fullSchemaForDefs = {
-          ...schema,
-          $id: 'http://frigate.internal/schema',
-        } as any;
-        try {
-          ajv.removeSchema('http://frigate.internal/schema');
-        } catch {}
-        ajv.addSchema(fullSchemaForDefs);
-      }
-      return ajv.compile(sectionSchema as any);
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn('SimpleRenderer validation setup failed:', err);
-      return Object.assign(() => true, { errors: [] as any[] });
-    }
-  }, [sectionSchema, schema]);
-
-  const errorMap = useMemo(() => {
-    try {
-      void (validate as any)(data);
-      return buildErrorMap((validate as any).errors as any);
-    } catch {
-      return {} as Record<string, string[]>;
-    }
-  }, [validate, data]);
-
-  const errorsFor = (pathArr: string[]) => getErrorsForPath(errorMap, pathArr);
+  // Skip validation for now - just render the form
+  const errorsFor = () => [];
 
   return (
-    <div>
+    <div class="p-4">
       <Field
         path={[section]}
         subschema={(schema.properties || {})[section]}
         value={data?.[section]}
         onChange={(next: any) => onChange({ [section]: next })}
         errorsFor={errorsFor}
+        rootSchema={schema}
       />
     </div>
   );

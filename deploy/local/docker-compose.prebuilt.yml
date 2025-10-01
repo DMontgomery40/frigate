@@ -1,31 +1,32 @@
-version: "3.9"
 services:
   frigate:
     container_name: frigate
+    image: ghcr.io/blakeblackshear/frigate:stable
     privileged: true
     restart: unless-stopped
-    image: ghcr.io/blakeblackshear/frigate:stable
-    shm_size: "64mb"
+    stop_grace_period: 30s
+    shm_size: "512mb"
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ./config:/config
       - ./storage:/media/frigate
+      - ./../../web/dist:/opt/frigate/web:ro
       - type: tmpfs
         target: /tmp/cache
         tmpfs:
           size: 1000000000
     ports:
-      - "5001:5000"
-      - "8554:8554" # RTSP feeds
-      - "8555:8555/tcp" # WebRTC over tcp
-      - "8555:8555/udp" # WebRTC over udp
+      - "5000:5000"       # Backend HTTP API (unauthenticated)
+      - "8971:8971"
+      - "8554:8554"        # RTSP feeds
+      - "8555:8555/tcp"    # WebRTC over TCP
+      - "8555:8555/udp"    # WebRTC over UDP
     environment:
       FRIGATE_RTSP_PASSWORD: "password"
 
   mqtt:
     container_name: mqtt
     image: eclipse-mosquitto:2.0
-    restart: unless-stopped
-    command: mosquitto -c /mosquitto-no-auth.conf
+    command: mosquitto -c /mosquitto-no-auth.conf # enable no-auth mode
     ports:
       - "1883:1883"

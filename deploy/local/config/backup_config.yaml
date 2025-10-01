@@ -1,0 +1,20 @@
+mqtt:
+  enabled: false
+
+database:
+  # Persist DB in storage to avoid Docker Desktop FUSE WAL issues
+  path: /media/frigate/frigate.db
+
+cameras:
+  test:
+    ffmpeg:
+      inputs:
+        - path: /media/frigate/car-stopping.mp4
+          input_args: -re -stream_loop -1 -fflags +genpts
+          roles:
+            - detect
+    detect:
+      width: 1280
+      height: 720
+      fps: 5
+
