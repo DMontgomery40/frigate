@@ -145,25 +145,77 @@ function Field({ path, subschema, value, onChange, errorsFor, rootSchema }: any)
       </label>
     );
   }
-  if (type === 'object' && resolved.properties) {
-    const keys = Object.keys(resolved.properties);
-    return (
-      <div class="border rounded p-3 my-2">
-        <div class="font-semibold mb-1">{title}</div>
-        {keys.map((k) => (
-          <Field
-            key={k}
-            path={[...path, k]}
-            subschema={(resolved.properties as any)[k]}
-            value={value?.[k]}
-            onChange={(v: any) => onChange({ ...(value || {}), [k]: v })}
-            errorsFor={errorsFor}
-            rootSchema={rootSchema}
-          />
-        ))}
-        <Err />
-      </div>
-    );
+  if (type === 'object') {
+    // Check if it's a map/dictionary (additionalProperties) vs fixed properties
+    if (resolved.additionalProperties && !resolved.properties) {
+      // This is a map like cameras: { camera_name: CameraConfig }
+      const items = value && typeof value === 'object' ? Object.keys(value) : [];
+      return (
+        <div class="border rounded p-3 my-2">
+          <div class="font-semibold mb-1">{title}</div>
+          {desc && <div class="text-xs text-muted-foreground mb-2">{desc}</div>}
+          {items.map((itemKey) => (
+            <div key={itemKey} class="border rounded p-2 my-2">
+              <div class="flex items-center justify-between mb-2">
+                <span class="font-medium">{itemKey}</span>
+                <button
+                  class="border rounded px-2 py-1 text-xs"
+                  onClick={() => {
+                    const next = { ...value };
+                    delete next[itemKey];
+                    onChange(next);
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+              <Field
+                path={[...path, itemKey]}
+                subschema={resolved.additionalProperties}
+                value={value?.[itemKey]}
+                onChange={(v: any) => onChange({ ...(value || {}), [itemKey]: v })}
+                errorsFor={errorsFor}
+                rootSchema={rootSchema}
+              />
+            </div>
+          ))}
+          <button
+            class="mt-2 border rounded px-3 py-1 text-sm"
+            onClick={() => {
+              const newKey = prompt('Enter name for new item:');
+              if (newKey && newKey.trim()) {
+                onChange({ ...(value || {}), [newKey.trim()]: {} });
+              }
+            }}
+          >
+            + Add {title}
+          </button>
+          <Err />
+        </div>
+      );
+    }
+
+    // Fixed properties object
+    if (resolved.properties) {
+      const keys = Object.keys(resolved.properties);
+      return (
+        <div class="border rounded p-3 my-2">
+          <div class="font-semibold mb-1">{title}</div>
+          {keys.map((k) => (
+            <Field
+              key={k}
+              path={[...path, k]}
+              subschema={(resolved.properties as any)[k]}
+              value={value?.[k]}
+              onChange={(v: any) => onChange({ ...(value || {}), [k]: v })}
+              errorsFor={errorsFor}
+              rootSchema={rootSchema}
+            />
+          ))}
+          <Err />
+        </div>
+      );
+    }
   }
   if (type === 'array') {
     const items = Array.isArray(value) ? value : [];
