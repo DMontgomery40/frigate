@@ -236,7 +236,7 @@ export default function AdvancedConfigEditor() {
             )}
             <button
               className="border rounded px-3 py-1 disabled:opacity-60"
-              disabled={saving || (!unsaved && guard.errors.length === 0)}
+              disabled={saving || guard.errors.length > 0 || !unsaved}
               onClick={onSave}
             >
               {saving ? 'Saving…' : 'Save'}
