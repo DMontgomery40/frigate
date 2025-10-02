@@ -67,9 +67,16 @@ export const FIELD_HELP: Record<string, FieldHelp> = {
 
   // Go2RTC
   'go2rtc': {
-    description: 'Go2RTC configuration for live streaming. Define RTSP/WebRTC streams here. Each stream can have multiple sources for failover.',
-    example: '{\n  "streams": {\n    "camera1": "rtsp://192.168.1.5:554/stream"\n  }\n}',
-    docsUrl: 'https://docs.frigate.video/configuration/live',
+    description: 'Go2RTC configuration for live streaming and restreaming. This is a complex configuration with multiple sections:\n\n• streams: Define camera streams (RTSP, HTTP, etc.)\n• webrtc: WebRTC server configuration\n• rtsp: RTSP server settings\n\nMost users only need to configure "streams" to define their camera feeds. Go2RTC handles converting streams for the web UI.\n\nExample stream config:\n{\n  "camera_name": "rtsp://user:pass@192.168.1.5:554/stream"\n}\n\nFor advanced multi-source failover:\n{\n  "camera_name": [\n    "rtsp://primary_url",\n    "rtsp://backup_url"\n  ]\n}',
+    example: '{\n  "streams": {\n    "front_door": "rtsp://192.168.1.5:554/stream",\n    "backyard": "rtsp://192.168.1.6:554/stream"\n  }\n}',
+    docsUrl: 'https://docs.frigate.video/configuration/restream',
+  },
+
+  // Environment variables
+  'environment_vars': {
+    description: 'Environment variables passed to the Frigate container. Common uses:\n\n• LIBVA_DRIVER_NAME: Set VA-API driver (e.g., "radeonsi" for AMD GPU)\n• OPENCV_DNN_BACKEND: Force OpenCV backend\n• TZ: Set timezone (e.g., "America/New_York")\n\nThese are applied at container startup and require a restart to take effect.',
+    example: '{\n  "LIBVA_DRIVER_NAME": "radeonsi",\n  "TZ": "America/New_York"\n}',
+    docsUrl: 'https://docs.frigate.video/configuration/advanced',
   },
 
   // Detectors
@@ -82,6 +89,13 @@ export const FIELD_HELP: Record<string, FieldHelp> = {
   'cameras.*.ffmpeg.inputs': {
     description: 'Camera stream sources. Each input has a path (RTSP URL) and roles (detect, record). Use separate inputs for sub-streams (detect) and main streams (record) for best performance.',
     example: '[{\n  "path": "rtsp://camera/substream",\n  "roles": ["detect"]\n}, {\n  "path": "rtsp://camera/mainstream",\n  "roles": ["record"]\n}]',
+    docsUrl: 'https://docs.frigate.video/configuration/camera_specific#ffmpeg-inputs',
+  },
+
+  // FFmpeg input path
+  'cameras.*.ffmpeg.inputs.*.path': {
+    description: 'RTSP URL to your camera stream.\n\nFormat: rtsp://username:password@camera_ip:port/stream_path\n\nExamples:\n• rtsp://admin:password123@192.168.1.100:554/stream1\n• rtsp://user:pass@10.0.1.50:554/h264Preview_01_main\n\nCommon ports: 554 (RTSP), 8554 (rtsp-simple-server)\n\nTip: Use a lower resolution "sub-stream" for detection (saves CPU), and high-res "main stream" for recording.',
+    example: 'rtsp://admin:password@192.168.1.100:554/stream1',
     docsUrl: 'https://docs.frigate.video/configuration/camera_specific#ffmpeg-inputs',
   },
 
